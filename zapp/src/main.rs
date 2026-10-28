@@ -44,9 +44,10 @@ enum Commands {
             coming from Oryx and is not currently in bootloader mode."
     )]
     Update,
+    /// Open Oryx URL for your current keyboard layout.
     #[command(
-        long_about = "Open Oryx layout for your current keyboard layout.\n\n\
-            Detects a connected ZSA keyboard, reads its layout, and opens the \
+        long_about = "Open Oryx URL for your current keyboard layout.\n\n\
+            Detects a connected ZSA keyboard, reads its layout, and opens its \
             Oryx layout page in your default browser. \n\
             Note: This only works if your keyboard is currently flashed with a firmware \
             coming from Oryx and is not currently in bootloader mode."
@@ -157,27 +158,30 @@ fn cmd_edit() -> Result<()> {
     println!("Found {} connected", connected.keyboard);
 
     // Same process of reading the keyboard as Update
-    let Some((layout_id, revision_id)) = connected.serial.split_once('/') else {
+    let Some((layout_id, _)) = connected.serial.split_once('/') else {
         bail!(
             "Updates only work if your keyboard is currently flashed with a firmware coming from Oryx."
         );
     };
 
-    if layout_id.is_empty() || revision_id.is_empty() {
+    if layout_id.is_empty(){
         bail!(
             "Updates only work if your keyboard is currently flashed with a firmware coming from Oryx."
         );
     }
 
-    println!("Layout: {layout_id}, revision: {revision_id}");
+    // Open the given webpage, doing some keyboard type magic to make the URL
+    let path_string = format!("https://configure.zsa.io/{}/layouts/{}/latest", 
+        connected.keyboard.to_string().to_lowercase().replace(" ", "-"), layout_id);
 
-    // Open the given webpage
-    let path = format!("https://configure.zsa.io/{}/layouts/{}/latest", 
-        connected.keyboard.to_string().to_lowercase(), layout_id);
+    let path = path_string.trim();
 
     match open::that(path){
-        Ok(_) => println!("Opened Oryx successfully."),
-        Err(err) => eprintln!("An error occurred when opening Oryx: {}", err),
+        Ok(_) => println!("Opened Oryx URL for layout {} successfully.\n\
+                If your browser was not automatically opened, please use the following URL:\n\
+                \t{}", layout_id, path),
+        Err(err) => eprintln!("An error occurred when opening Oryx URL for layout {}: {}\n\
+                \t{}", layout_id, err, path),
     }
 
     Ok(())
