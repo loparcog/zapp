@@ -44,6 +44,14 @@ enum Commands {
             coming from Oryx and is not currently in bootloader mode."
     )]
     Update,
+    #[command(
+        long_about = "Open Oryx layout for your current keyboard layout.\n\n\
+            Detects a connected ZSA keyboard, reads its layout, and opens the \
+            Oryx layout page in your default browser. \n\
+            Note: This only works if your keyboard is currently flashed with a firmware \
+            coming from Oryx and is not currently in bootloader mode."
+    )]
+    Edit
 }
 
 fn main() -> Result<()> {
@@ -62,6 +70,7 @@ fn main() -> Result<()> {
             }
         }
         Commands::Update => cmd_update(),
+        Commands::Edit => cmd_edit()
     }
 }
 
@@ -141,6 +150,37 @@ fn cmd_update() -> Result<()> {
     let fw = download_firmware(&latest, variant)?;
     print_firmware_info(&fw);
     wait_and_flash(&fw)
+}
+
+fn cmd_edit() -> Result<()> {
+    let connected = device::find_keyboard().context("Failed to scan USB devices")?;
+    println!("Found {} connected", connected.keyboard);
+
+    // Same process of reading the keyboard as Update
+    let Some((layout_id, revision_id)) = connected.serial.split_once('/') else {
+        bail!(
+            "Updates only work if your keyboard is currently flashed with a firmware coming from Oryx."
+        );
+    };
+
+    if layout_id.is_empty() || revision_id.is_empty() {
+        bail!(
+            "Updates only work if your keyboard is currently flashed with a firmware coming from Oryx."
+        );
+    }
+
+    println!("Layout: {layout_id}, revision: {revision_id}");
+
+    // Open the given webpage
+    let path = format!("https://configure.zsa.io/{}/layouts/{}/latest", 
+        connected.keyboard.to_string().to_lowercase(), layout_id);
+
+    match open::that(path){
+        Ok(_) => println!("Opened Oryx successfully."),
+        Err(err) => eprintln!("An error occurred when opening Oryx: {}", err),
+    }
+
+    Ok(())
 }
 
 /// Print the commit message attached to a revision. A revision may carry no
